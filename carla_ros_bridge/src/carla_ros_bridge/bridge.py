@@ -136,14 +136,13 @@ class CarlaRosBridge(object):
             self.update_actor_thread = Thread(
                 target=self._update_actors_thread)
             self.update_actor_thread.start()
-
+            
+            self.carla_world.wait_for_tick()
             # create initially existing actors
             self.update_actors_queue.put(
-                set([x.id for x in self.carla_world.get_snapshot()]))
-
+                set([x.id for x in self.carla_world.get_snapshot()]), timeout=2)
             # wait for first actors creation to be finished
             self.update_actors_queue.join()
-
             # register callback to update actors
             self.on_tick_id = self.carla_world.on_tick(self._carla_time_tick)
 
@@ -318,6 +317,7 @@ class CarlaRosBridge(object):
         """
         update the available actors
         """
+        
         previous_actors = set(self.actors)
 
         new_actors = current_actors - previous_actors
@@ -598,21 +598,20 @@ def main():
                 .format(carla_client.get_client_version(),
                         carla_client.get_server_version()))
 
-        carla_world = carla_client.get_world()
-
-        if "town" in parameters:
-            if parameters["town"].endswith(".xodr"):
-                rospy.loginfo(
-                    "Loading opendrive world from file '{}'".format(parameters["town"]))
-                with open(parameters["town"]) as od_file:
-                    data = od_file.read()
-                carla_world = carla_client.generate_opendrive_world(str(data))
-            else:
-                if carla_world.get_map().name != parameters["town"]:
-                    rospy.loginfo("Loading town '{}' (previous: '{}').".format(
-                        parameters["town"], carla_world.get_map().name))
-                    carla_world = carla_client.load_world(parameters["town"])
-            carla_world.tick()
+        # carla_world = carla_client.get_world()
+        # if "town" in parameters:
+        #     if parameters["town"].endswith(".xodr"):
+        #         rospy.loginfo(
+        #             "Loading opendrive world from file '{}'".format(parameters["town"]))
+        #         with open(parameters["town"]) as od_file:
+        #             data = od_file.read()
+        #         carla_world = carla_client.generate_opendrive_world(str(data))
+        #     else:
+        #         if carla_world.get_map().name != parameters["town"]:
+        #             rospy.loginfo("Loading town '{}' (previous: '{}').".format(
+        #                 parameters["town"], carla_world.get_map().name))
+        #             carla_world = carla_client.load_world(parameters["town"])
+        #     carla_world.tick()
 
         carla_bridge = CarlaRosBridge(carla_client.get_world(), parameters)
         carla_bridge.run()
